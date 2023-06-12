@@ -3,26 +3,22 @@ import { startStandaloneServer } from '@apollo/server/standalone';
 
 const typeDefs = `#graphql
   type Team {
-    id: Int
+    id: ID
     name: String
+    solves: [Challenge]
   }
 
   type Challenge {
-    id: Int
+    id: ID
     name: String
     description: String
     flag: String
-  }
-
-  type Solve {
-    team: Team
-    challenge: Challenge
+    solvedBy: [Team]
   }
 
   type Query {
     teams: [Team]
     challenges: [Challenge]
-    solves: [Solve]
   }
 `;
 
@@ -34,18 +30,34 @@ const teams = [
 
 const challenges = [
   {id: 1, name: 'Challenge 1', description: 'This is an easy one', flag: '123456'},
-  {id: 2, name: 'Challenge 2', description: 'Another one', flag: '987654'}
+  {id: 2, name: 'Challenge 2', description: 'Another one', flag: '987654'},
+  {id: 3, name: 'Challenge 3', description: 'Too hard', flag: '666999'}
 ]
 
 const solves = [
-  {team: teams[0], challenge: challenges[0]}
+  { teamId: 1, challengeId: 1 },
+  { teamId: 1, challengeId: 2 },
+  { teamId: 2, challengeId: 2 }
 ]
 
 const resolvers = {
   Query: {
     teams: () => teams,
     challenges: () => challenges,
-    solves: () => solves
+  },
+  Team: {
+    solves: (parent) => {
+      const parentSolves = solves.filter((solve) => solve.teamId == parent.id)
+      const challengeIds = parentSolves.map((solve) => solve.challengeId)
+      return challenges.filter((challenge) => challengeIds.includes(challenge.id))
+    }
+  },
+  Challenge: {
+    solvedBy: (parent) => {
+      const parentSolves = solves.filter((solve) => solve.challengeId == parent.id)
+      const teamIds = parentSolves.map((solve) => solve.teamId)
+      return teams.filter((team) => teamIds.includes(team.id))
+    }
   }
 }
 
