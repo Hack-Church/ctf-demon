@@ -1,5 +1,8 @@
 import { ApolloServer } from '@apollo/server';
 import { startStandaloneServer } from '@apollo/server/standalone';
+import sqlite3 from 'sqlite3'
+
+const db = new sqlite3.Database('./ctf-demon.db')
 
 const typeDefs = `#graphql
   type Team {
@@ -22,41 +25,27 @@ const typeDefs = `#graphql
   }
 `;
 
-const teams = [
-  {id: 1, name: 'Team 1'},
-  {id: 2, name: 'Team 2'},
-  {id: 3, name: 'Team 3'},
-]
-
-const challenges = [
-  {id: 1, name: 'Challenge 1', description: 'This is an easy one', flag: '123456'},
-  {id: 2, name: 'Challenge 2', description: 'Another one', flag: '987654'},
-  {id: 3, name: 'Challenge 3', description: 'Too hard', flag: '666999'}
-]
-
-const solves = [
-  { teamId: 1, challengeId: 1 },
-  { teamId: 1, challengeId: 2 },
-  { teamId: 2, challengeId: 2 }
-]
-
 const resolvers = {
   Query: {
-    teams: () => teams,
-    challenges: () => challenges,
+    teams: () => new Promise((resolve, reject) => db.all(`SELECT * FROM teams`, [], (err,rows) => resolve(rows))),
+    challenges: () => new Promise((resolve, reject) => db.all(`SELECT * FROM challenges`, [], (err,rows) => resolve(rows))),
   },
   Team: {
-    solves: (parent) => {
-      const parentSolves = solves.filter((solve) => solve.teamId == parent.id)
-      const challengeIds = parentSolves.map((solve) => solve.challengeId)
-      return challenges.filter((challenge) => challengeIds.includes(challenge.id))
+    solves: async (parent) => {
+      const solvesQuery = `SELECT challengeId FROM solves WHERE teamId = ?`
+      const solves = await new Promise<{challengeId:string}[]>((resolve, reject) => db.all(solvesQuery, [parent.id], (err, rows: {challengeId:string}[]) => resolve(rows)))
+      const challengeIds = solves.map(item => item.challengeId)
+      const challengeQuery = `SELECT * FROM challenges WHERE id IN (${challengeIds.map(() => '?')})`
+      return await new Promise((resolve, reject) => db.all(challengeQuery, challengeIds, (err,rows) => resolve(rows)))
     }
   },
   Challenge: {
-    solvedBy: (parent) => {
-      const parentSolves = solves.filter((solve) => solve.challengeId == parent.id)
-      const teamIds = parentSolves.map((solve) => solve.teamId)
-      return teams.filter((team) => teamIds.includes(team.id))
+    solvedBy: async (parent) => {
+      const solvesQuery = `SELECT teamId FROM solves WHERE challengeId = ?`
+      const solves = await new Promise<{teamId:string}[]>((resolve, reject) => db.all(solvesQuery, [parent.id], (err, rows: {teamId:string}[]) => resolve(rows)))
+      const teamIds = solves.map(item => item.teamId)
+      const teamQuery = `SELECT * FROM teams WHERE id IN (${teamIds.map(() => '?')})`
+      return await new Promise((resolve, reject) => db.all(teamQuery, teamIds, (err,rows) => resolve(rows)))
     }
   }
 }
