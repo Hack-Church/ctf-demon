@@ -46,7 +46,7 @@ const challengeQuery = `INSERT INTO challenges (id, name, description, flag, poi
 const initialChallenges = [
   { id: 1, name: 'Challenge 1', description: 'Easy', flag: '123456', points: 5},
   { id: 2, name: 'Challenge 2', description: 'Medium', flag: '987654', points: 10},
-  { id: 3, name: 'Challenge 2', description: 'Hard', flag: '666999', points: 20},
+  { id: 3, name: 'Challenge 3', description: 'Hard', flag: '666999', points: 20},
 ]
 
 db.serialize(() => {
